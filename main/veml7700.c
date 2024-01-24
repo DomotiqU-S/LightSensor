@@ -1,231 +1,107 @@
 #include "veml7700.h"
 
-uint8_t VEML7700Init(BusController *bus) {
-    // Set gain, persistence, integration time and power saving mode
-    // Set interrupt thresholds
-    VEML7700Enable(0);
-    // VEML7700SetInterruptEnable(0);
-    // VEML7700SetPersistence(VEML7700_PERSISTENCE_1);
-    // VEML7700SetGain(VEML7700_GAIN_1_8);
-    // VEML7700SetIntegrationTime(VEML7700_INTEGRATION_TIME_100MS);
-    // VEML7700SetPowerSavingMode(VEML7700_POWER_SAVING_MODE_1);
-    // VEML7700Enable(1);
+/**
+ * @brief List of all possible values for configuring sensor gain.
+ * 
+ */
+static const uint8_t gain_values[VEML7700_GAIN_OPTIONS_COUNT] = {
+    VEML7700_GAIN_2,
+    VEML7700_GAIN_1,
+    VEML7700_GAIN_1_8,
+    VEML7700_GAIN_1_4
+};
+/**
+ * @brief List of all possible values for configuring sensor integration time.
+ * 
+ */
+static const uint8_t integration_time_values[VEML7700_IT_OPTIONS_COUNT] = {
+    VEML7700_IT_800MS,
+    VEML7700_IT_400MS,
+    VEML7700_IT_200MS,
+    VEML7700_IT_100MS,
+    VEML7700_IT_50MS,
+    VEML7700_IT_25MS
+};
 
+static const float resolution_map[VEML7700_IT_OPTIONS_COUNT][VEML7700_GAIN_OPTIONS_COUNT] = {
+    { 0.0036, 0.0072, 0.0288, 0.0576 },
+    { 0.0072, 0.0144, 0.0576, 0.1152 },
+    { 0.0288, 0.0576, 0.2304, 0.4608 },
+    { 0.0576, 0.1152, 0.4608, 0.9216 },
+    { 0.1152, 0.2304, 0.9216, 1.8432 },
+    { 0.2304, 0.4608, 1.8432, 3.6864 }
+};
+
+static const uint32_t maximums_map[VEML7700_IT_OPTIONS_COUNT][VEML7700_GAIN_OPTIONS_COUNT] = {
+    {236, 472, 1887, 3775},
+    {472, 944, 3775, 7550},
+    {944, 1887, 7550, 15099},
+    {1887, 3775, 15099, 30199},
+    {3775, 7550, 30199, 60398},
+    {7550, 15099, 60398, 120796}
+};
+
+VEML7700Conf *priv_conf;
+
+uint8_t VEML7700Init(BusController *this, VEML7700Conf *conf) {
+    priv_conf = malloc(sizeof(VEML7700Conf));
+    VEML7700SetConfig(this, conf);
     return 1;
 }
 
-void VEML7700GetRead(struct veml7700_read *read) {
-    read->als = VEML7700GetALS();
+esp_err_t VEML7700SendConfiguration(BusController *this, VEML7700Conf *conf)
+{
+	uint16_t config_data = ( 
+		(conf->als_gain << 11) |
+		(conf->als_it << 6) |
+		(conf->als_pers << 4) |
+		(conf->als_int_en << 1) |
+		(conf->als_sd << 0)
+	);
+
+    conf->als_gain = VEML7700GetResolution(this, conf);
+    conf->maximum_lux = VEML7700GetCurrentMaximumLux(this, conf);
+
+    return BusControllerWrite(this, VEML7700_ALS_CONF, &config_data, 2);
 }
 
-void VEML7700SetConf(struct veml7700_conf *conf) {
-    
+float VEML7700GetResolution(BusController *this, VEML7700Conf *conf) {
+    int gain_index = VEML7700GetGainIndex(conf->als_gain);
+    int it_index = VEML7700GetItIndex(conf->als_it);
+
+    return resolution_map[it_index][gain_index];
 }
 
-void VEML7700GetConf(struct veml7700_conf *conf) {
-    
+static int VEML7700GetGainIndex(uint8_t gain) {
+    return indexOf(gain, gain_values, VEML7700_GAIN_OPTIONS_COUNT);
 }
 
-void VEML7700GetLux(float *lux) {
-    uint16_t raw_als = 0x00;
-    VEML7700GetALS(raw_als);
-    *lux = VEML7700ComputeLux(raw_als, 1);
+static int VEML7700GetItIndex(uint8_t it) {
+    return indexOf(it, integration_time_values, VEML7700_IT_OPTIONS_COUNT);
 }
 
-void VEML7700SetResolution(uint8_t resolution) {
-    // Get gain and integration time
-    uint8_t data_it;
-    uint8_t data_gain;
-    VEML7700GetIntegrationTime(data_it);
-    VEML7700GetGain(data_gain);
-    // Compute resolution
-    resolution = MAX_RES * (IT_MAX / data_it) * (GAIN_MAX / data_gain);
-}
-
-void VEML7700GetResolution(uint8_t resolution) {
-    // Get gain and integration time
-    uint8_t data_it;
-    uint8_t data_gain;
-    VEML7700GetIntegrationTime(data_it);
-    VEML7700GetGain(data_gain);
-    // Compute resolution
-    resolution = MAX_RES * (IT_MAX / data_it) * (GAIN_MAX / data_gain);
-}
-
-float VEML7700ComputeLux(float raw_als, uint8_t is_corrected) {
-    // Get resolution
-    uint8_t resolution;
-    VEML7700GetResolution(resolution);
-    float lux = resolution * raw_als;
-    
-    if(is_corrected) {
-        lux = (((6.0135e-13 * lux - 9.3924e-9) * lux + 8.1488e-5) * lux + 1.0023) * lux;
+static uint8_t indexOf(uint8_t element, const uint8_t *array, uint8_t array_size) {
+    for (int i = 0; i < array_size; i++) {
+        if (array[i] == element) {
+            return i;
+        }
     }
-
-    return lux;
+    return -1;
 }
 
-void VEML7700Enable(uint8_t enable) {
-    uint8_t data = 0x00;
-    if (enable) {
-        data = 0x00;
-    }
-    else {
-        data = 0x01;
-    }
-    I2CWriteRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_CONFIG, data);
+static VEML7700GetCurrentMaximumLux(BusController *this, VEML7700Conf *conf) {
+    int gain_index = VEML7700GetGainIndex(conf->als_gain);
+    int it_index = VEML7700GetItIndex(conf->als_it);
+
+    return maximums_map[it_index][gain_index];
 }
 
-void VEML7700SetPersistence(uint8_t persistence) {
-    uint8_t data = 0x00;
-    data = I2CReadRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_CONFIG);
-    data &= 0xF3;
-    data |= (persistence << 2);
-    I2CWriteRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_CONFIG, data);
-}
-
-void VEML7700SetGain(uint8_t gain) {
-    uint8_t data = 0x00;
-    data = I2CReadRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_CONFIG);
-    data &= 0xFC;
-    data |= gain;
-    I2CWriteRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_CONFIG, data);
-}
-
-void VEML7700SetIntegrationTime(uint8_t integration_time) {
-    uint8_t data = 0x00;
-    data = I2CReadRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_CONFIG);
-    data &= 0xCF;
-    data |= (integration_time << 4);
-    I2CWriteRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_CONFIG, data);
-}
-
-void VEML7700SetPowerSavingMode(uint8_t power_saving_mode) {
-    uint8_t data = 0x00;
-    data = I2CReadRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_CONFIG);
-    data &= 0xF8;
-    data |= power_saving_mode;
-    I2CWriteRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_CONFIG, data);
-}
-
-uint16_t VEML7700GetALS() {
-    uint16_t data = 0x00;
-    data = I2CReadRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_DATA);
-    data <<= 8;
-    data |= I2CReadRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_DATA + 1);
-    return data;
-}
-
-void VEML7700GetGain(uint8_t gain) {
-    uint8_t data = 0x00;
-    data = I2CReadRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_CONFIG);
-    data &= 0x03;
-    gain = data;
-}
-
-void VEML7700GetIntegrationTime(uint8_t it) {
-    uint8_t data = 0x00;
-    data = I2CReadRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_CONFIG);
-    data &= 0x0C;
-    it = data >> 2;
-}
-
-void VEML7700GetPowerSavingMode(uint8_t power_saving_mode) {
-    uint8_t data = 0x00;
-    data = I2CReadRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_CONFIG);
-    data &= 0x07;
-    power_saving_mode = data;
-}
-
-void VEML7700GetPersistence(uint8_t persistence) {
-    uint8_t data = 0x00;
-    data = I2CReadRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_CONFIG);
-    data &= 0x30;
-    persistence = data >> 4;
-}
-
-void VEML7700GetInterruptEnable(uint8_t interrupt_enable) {
-    uint8_t data = 0x00;
-    data = I2CReadRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_INT_EN);
-    interrupt_enable = data;
-}
-
-void VEML7700SetHighThreshold(uint16_t threshold) {
-    uint8_t data = 0x00;
-    data = threshold >> 8;
-    I2CWriteRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_THDH, data);
-    data = threshold & 0xFF;
-    I2CWriteRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_THDH + 1, data);
-}
-
-void VEML7700SetLowThreshold(uint16_t threshold) {
-    uint8_t data = 0x00;
-    data = threshold >> 8;
-    I2CWriteRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_THDL, data);
-    data = threshold & 0xFF;
-    I2CWriteRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_THDL + 1, data);
-}
-
-void VEML7700GetHighThreshold(uint16_t *threshold) {
-    uint8_t data = 0x00;
-    data = I2CReadRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_THDH);
-    data <<= 8;
-    data |= I2CReadRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_THDH + 1);
-    threshold = data;
-}
-
-void VEML7700GetLowThreshold(uint16_t *threshold) {
-    uint8_t data = 0x00;
-    data = I2CReadRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_THDL);
-    data <<= 8;
-    data |= I2CReadRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_THDL + 1);
-    threshold = data;
-}
-
-void VEML7700SetInterruptEnable(uint8_t enable) {
-    uint8_t data = 0x00;
-    if (enable) {
-        data = 0x00;
-    }
-    else {
-        data = 0x01;
-    }
-    I2CWriteRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_INT_EN, data);
-}
-
-void VEML7700GetInterruptEnable(uint8_t enable) {
-    uint8_t data = 0x00;
-    data = I2CReadRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_INT_EN);
-    enable = data;
-}
-
-void VEML7700GetLowThreshold(uint16_t threshold) {
-    uint8_t data = 0x00;
-    data = I2CReadRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_IF_L);
-    flag = data;
-}
-
-void VEML7700GetHighThreshold(uint16_t threshold) {
-    uint8_t data = 0x00;
-    data = I2CReadRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_IF_H);
-    flag = data;
-}
-
-void VEML7700powerSaveEnable() {
-    uint8_t data = 0x00;
-    if (enable) {
-        data = 0x00;
-    }
-    else {
-        data = 0x01;
-    }
-    I2CWriteRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_ALS_IF_L, data);
-}
-
-void VEML7700AlsWhite(float *als_white) {
-    uint16_t data = 0x00;
-    data = I2CReadRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_WHITE_DATA);
-    data <<= 8;
-    data |= I2CReadRegister(VEML7700_I2C_ADDRESS, VEML7700_REG_WHITE_DATA + 1);
-    als_white = data;
+void VEML7700SetConfig(BusController *this, VEML7700Conf *conf) {
+    priv_conf->als_gain = conf->als_gain;
+    priv_conf->als_it = conf->als_it;
+    priv_conf->als_pers = conf->als_pers;
+    priv_conf->als_int_en = conf->als_int_en;
+    priv_conf->als_sd = conf->als_sd;
+    priv_conf->resolution = conf->resolution;
+    priv_conf->maximum_lux = conf->maximum_lux;
 }

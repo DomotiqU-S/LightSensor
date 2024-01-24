@@ -12,20 +12,20 @@
  * @brief Define the bus type
  * 
  */
-enum BusType {
+typedef enum {
     I2C,
     SPI
-};
+} BusType;
 
 /**
  * @brief Define the bus controller struct
  * 
  */
-struct BusController {
+typedef struct {
     i2c_data_t i2c_controller;
     spi_controller_t spi_controller;
     uint8_t address;
-    enum BusType bus_type;
+    BusType bus_type;
     uint8_t sda_pin;
     uint8_t scl_pin;
     uint32_t clk_speed;
@@ -33,7 +33,7 @@ struct BusController {
     uint8_t miso_pin;
     uint8_t sclk_pin;
     uint8_t cs_pin;
-};
+} BusController;
 
 /**
  * @brief Initialize the bus controller
@@ -41,7 +41,7 @@ struct BusController {
  * @param bus_controller 
  * @return esp_err_t 
  */
-esp_err_t BusControllerInit(struct BusController *bus_controller);
+esp_err_t BusControllerInit(BusController *bus_controller);
 
 /**
  * @brief Deinitialize the bus controller
@@ -49,7 +49,7 @@ esp_err_t BusControllerInit(struct BusController *bus_controller);
  * @param bus_controller 
  * @return esp_err_t 
  */
-esp_err_t BusControllerDeinit(struct BusController *bus_controller);
+esp_err_t BusControllerDeinit(BusController *bus_controller);
 
 /**
  * @brief Write data to the bus controller
@@ -60,7 +60,7 @@ esp_err_t BusControllerDeinit(struct BusController *bus_controller);
  * @param data_size size of buffer
  * @return esp_err_t 
  */
-esp_err_t BusControllerWrite(struct BusController *bus_controller, uint8_t cmd, uint8_t *data, size_t data_size);
+esp_err_t BusControllerWrite(BusController *bus_controller, uint8_t cmd, uint8_t *data, size_t data_size);
 
 /**
  * @brief read data from the bus controller
@@ -71,6 +71,6 @@ esp_err_t BusControllerWrite(struct BusController *bus_controller, uint8_t cmd, 
  * @param data_size size of buffer
  * @return esp_err_t 
  */
-esp_err_t BusControllerRead(struct BusController *bus_controller, uint8_t cmd, uint8_t *data, size_t data_size);
+esp_err_t BusControllerRead(BusController *bus_controller, uint8_t cmd, uint8_t *data, size_t data_size);
 
 #endif

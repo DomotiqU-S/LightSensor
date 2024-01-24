@@ -1,6 +1,6 @@
 #include "BusController.h"
 
-esp_err_t BusControllerInit(struct BusController *bus_controller) {
+esp_err_t BusControllerInit(BusController *bus_controller) {
     esp_err_t ret;
     switch (bus_controller->bus_type) {
         case I2C:
@@ -17,7 +17,7 @@ esp_err_t BusControllerInit(struct BusController *bus_controller) {
     return ret;
 }
 
-esp_err_t BusControllerDeinit(struct BusController *bus_controller) {
+esp_err_t BusControllerDeinit(BusController *bus_controller) {
     esp_err_t ret;
     switch (bus_controller->bus_type) {
         case I2C:
@@ -34,7 +34,7 @@ esp_err_t BusControllerDeinit(struct BusController *bus_controller) {
     return ret;
 }
 
-esp_err_t BusControllerWrite(struct BusController *bus_controller, uint8_t cmd, uint8_t *data, size_t data_size) {
+esp_err_t BusControllerWrite(BusController *bus_controller, uint8_t cmd, uint8_t *data, size_t data_size) {
     esp_err_t ret;
     switch (bus_controller->bus_type) {
         case I2C:
@@ -51,7 +51,7 @@ esp_err_t BusControllerWrite(struct BusController *bus_controller, uint8_t cmd, 
     return ret;
 }
 
-esp_err_t BusControllerRead(struct BusController *bus_controller, uint8_t cmd, uint8_t *data, size_t data_size) {
+esp_err_t BusControllerRead(BusController *bus_controller, uint8_t cmd, uint8_t *data, size_t data_size) {
     esp_err_t ret;
     switch (bus_controller->bus_type) {
         case I2C:

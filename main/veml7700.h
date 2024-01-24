@@ -4,8 +4,15 @@
 #include <stdint.h>
 #include "BusController.h"
 #include "esp_log.h"
+#include "esp_err.h"
 
-#define VEML7700_ADDR 0x10
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define VEML7700_ADDR UINT8_C(0x10)
+#define LUX_FC_COEF 0.092903
+#define FC_LUX_COEF 10.76391
 
 // Register addresses
 #define ALS_CONF 0x00
@@ -50,34 +57,27 @@
 #define VEML7700_POWER_SAVE_MODE3 0x02
 #define VEML7700_POWER_SAVE_MODE4 0x03
 
-const float MAX_RES = 0.0036;
-const float GAIN_MAX = 2;
-const float IT_MAX = 800;
+#define VEML7700_GAIN_OPTIONS_COUNT 4	/*!< Possible gain values count */
+#define VEML7700_IT_OPTIONS_COUNT 6		/*!< Possible integration time values count */
 
-struct veml7700_conf
+typedef struct
 {
     uint8_t als_gain;
     uint8_t als_it;
     uint8_t als_pers;
     uint8_t als_int_en;
     uint8_t als_sd;
-};
+    float resolution;
+    uint32_t maximum_lux;
+} VEML7700Conf;
 
-struct veml7700_data
+typedef struct
 {
     uint16_t als;
     uint16_t white;
     float als_white;
     float lux;
-};
-
-typedef enum {
-  VEML_LUX_NORMAL,
-  VEML_LUX_CORRECTED,
-  VEML_LUX_AUTO,
-  VEML_LUX_NORMAL_NOWAIT,
-  VEML_LUX_CORRECTED_NOWAIT
-} LuxMethod;
+} VEML7700Data;
 
 /**
  * @brief Initialize the sensor
@@ -85,174 +85,81 @@ typedef enum {
  * @param bus the bus controller to use
  * @return esp_err_t 
  */
-uint8_t VEML7700Init(BusController *bus);
+esp_err_t VEML7700Init(BusController *this, VEML7700Conf *conf);
+
+/**
+ * @brief Deinitialize the sensor
+ * 
+ * @param this the bus controller to use
+ */
+void VEML7700Deinit(BusController *this);
 
 /**
  * @brief set the configuration of the sensor
  * 
+ * @param this the bus controller to use
  * @param conf the configuration to set
  * @return esp_err_t 
  */
-void VEMLSetConf(struct veml7700_conf *conf);
+void VEML7700SetConfig(BusController *this, VEML7700Conf *conf);
 
 /**
- * @brief Read the configuration from the sensor
+ * @brief Read the configuration of the sensor
  * 
- * @param conf buffer to store the configuration
+ * @param this 
+ * @param data 
  * @return esp_err_t 
  */
-veml7700_conf VEMLGetRead(struct veml7700_conf *conf);
+esp_err_t VEML7700ReadAlsLux(BusController *this, VEML7700Data *data);
 
 /**
- * @brief Read the ALS values from the sensor
+ * @brief 
  * 
- * @param lux buffer to store the lux value
+ * @param this 
+ * @param data 
  * @return esp_err_t 
  */
-void VEML7700GetLux(float lux);
+esp_err_t VEML7700ReadAlsWhite(BusController *this, VEML7700Data *data);
 
 /**
- * @brief Read the white values from the sensor
+ * @brief 
  * 
- * @param white buffer to store the white value
+ * @param this 
+ * @return float 
+ */
+float VEML7700GetResolution(BusController *this, VEML7700Conf *conf);
+
+/**
+ * @brief 
+ * 
+ * @param this 
  * @return esp_err_t 
  */
-void VEML7700GetWhite(float white);
+esp_err_t VEML7700ReadAlsLuxAuto(BusController *this);
 
 /**
- * @brief Read the ALS and white values from the sensor
+ * @brief 
  * 
- * @param als_white buffer to store the als_white value
+ * @param this 
  * @return esp_err_t 
  */
-void VEML7700AlsWhite(float *als_white);
+esp_err_t VEML7700ReadAlsWhiteAuto(BusController *this);
 
-/**
- * @brief Get the power saver mode conf
- * 
- * @return true if the power save mode is enabled
- * @return false if the power save mode is disabled
- */
-bool VEML7700powerSaveEnable();
+static struct veml7700_config veml7700_get_default_config();
+static esp_err_t veml7700_optimize_configuration(veml7700_handle_t dev, double *lux);
+static uint32_t VEML7700GetCurrentMaximumLux(BusController *this, VEML7700Conf *conf);
+static uint32_t veml7700_get_lower_maximum_lux(veml7700_handle_t dev, double* lux);
+static uint32_t veml7700_get_lowest_maximum_lux();
+static uint32_t veml7700_get_maximum_lux();
+static int VEML7700GetGainIndex(uint8_t gain);
+static int veml7700_get_it_index(uint8_t integration_time);
+static uint8_t indexOf(uint8_t elm, const uint8_t *ar, uint8_t len);
+static void decrease_resolution(veml7700_handle_t dev);
+static void increase_resolution(veml7700_handle_t dev);
+static esp_err_t veml7700_i2c_read_reg(veml7700_handle_t dev, uint8_t reg_addr, uint16_t *reg_data);
+static esp_err_t veml7700_i2c_write_reg(veml7700_handle_t dev, uint8_t reg_addr, uint16_t reg_data);
+esp_err_t VEML7700SendConfiguration(BusController *this, VEML7700Conf *conf);
 
-/**
- * @brief Set the power saver mode
- * 
- * @param mode mode to set
- */
-void VEML7700SetPowerSaveMode(uint8_t mode);
-
-/**
- * @brief Set the high threshold
- * 
- * @param threshold 
- */
-void VEML7700SetHighThreshold(uint16_t threshold);
-
-/**
- * @brief Set low threshold
- * 
- * @param threshold 
- */
-void VEML7700SetLowThreshold(uint16_t threshold);
-
-/**
- * @brief Set persistence mode
- * 
- * @param pers 
- */
-void VEML7700SetPersistence(uint8_t pers);
-
-/**
- * @brief Set interrupt enable
- * 
- * @param enable 
- */
-void VEML7700SetInterruptEnable(uint8_t enable);
-
-/**
- * @brief Get the high threshold
- * 
- * @param threshold 
- */
-void VEML7700GetHighThreshold(uint16_t threshold);
-
-
-/**
- * @brief Get the low threshold
- * 
- * @param threshold 
- */
-void VEML7700GetLowThreshold(uint16_t threshold);
-
-/**
- * @brief Get the persistence
- * 
- * @param pers 
- */
-void VEML7700GetPersistence(uint8_t pers);
-
-/**
- * @brief Get the interrupt enable
- * 
- * @param enable 
- */
-void VEML7700GetInterruptEnable(uint8_t enable);
-
-/**
- * @brief Get the integration time
- * 
- * @param it 
- */
-void VEML7700GetResolution(uint8_t resolution);
-
-/**
- * @brief Get the integration time
- * 
- * @param it 
- */
-float VEML7700ComputeLux(float raw_als, uint8_t is_corrected);
-
-/**
- * @brief Get the integration time
- * 
- * @param it 
- */
-void VEML7700SetGain(uint8_t gain);
-
-/**
- * @brief Get the integration time
- * 
- * @param it 
- */
-void VEML7700SetIntegrationTime(uint8_t it);
-
-/**
- * @brief Get the integration time
- * 
- * @param it 
- */
-void VEML7700SetResolution(uint8_t resolution);
-
-/**
- * @brief Get the integration time
- * 
- * @param it 
- */
-void VEML7700GetGain(uint8_t gain);
-
-/**
- * @brief Get the integration time
- * 
- * @param it 
- */
-void VEML7700Enable(uint8_t enable);
-
-/**
- * @brief Get the integration time
- * 
- * @param it 
- */
-void VEML7700GetIntegrationTime(uint8_t it);
-
+#ifdef __cplusplus
+}
 #endif // VEML7700_H
