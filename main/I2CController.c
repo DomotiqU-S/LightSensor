@@ -15,7 +15,7 @@ esp_err_t I2CControllerInit(i2c_data_t *this, uint8_t address, uint8_t sda_pin, 
 
     i2c_param_config(i2c_master_port, &conf);
 
-    this->address = (address << 1);
+    this->address = address;
     this->scl_pin = scl_pin;
     this->sda_pin = sda_pin;
 

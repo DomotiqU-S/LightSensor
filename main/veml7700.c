@@ -5,22 +5,22 @@
  * 
  */
 static const uint8_t gain_values[VEML7700_GAIN_OPTIONS_COUNT] = {
-    VEML7700_GAIN_2,
-    VEML7700_GAIN_1,
-    VEML7700_GAIN_1_8,
-    VEML7700_GAIN_1_4
+    ALS_GAIN_2,
+    ALS_GAIN_1,
+    ALS_GAIN_1_4,
+    ALS_GAIN_1_8
 };
 /**
  * @brief List of all possible values for configuring sensor integration time.
  * 
  */
 static const uint8_t integration_time_values[VEML7700_IT_OPTIONS_COUNT] = {
-    VEML7700_IT_800MS,
-    VEML7700_IT_400MS,
-    VEML7700_IT_200MS,
-    VEML7700_IT_100MS,
-    VEML7700_IT_50MS,
-    VEML7700_IT_25MS
+    ALS_IT_800MS,
+    ALS_IT_400MS,
+    ALS_IT_200MS,
+    ALS_IT_100MS,
+    ALS_IT_50MS,
+    ALS_IT_25MS
 };
 
 static const float resolution_map[VEML7700_IT_OPTIONS_COUNT][VEML7700_GAIN_OPTIONS_COUNT] = {
@@ -43,9 +43,10 @@ static const uint32_t maximums_map[VEML7700_IT_OPTIONS_COUNT][VEML7700_GAIN_OPTI
 
 VEML7700Conf *priv_conf;
 
-uint8_t VEML7700Init(BusController *this, VEML7700Conf *conf) {
+esp_err_t VEML7700Init(BusController *this, VEML7700Conf *conf) {
     priv_conf = malloc(sizeof(VEML7700Conf));
     VEML7700SetConfig(this, conf);
+    VEML7700SendConfiguration(this, conf);
     return 1;
 }
 
@@ -59,10 +60,13 @@ esp_err_t VEML7700SendConfiguration(BusController *this, VEML7700Conf *conf)
 		(conf->als_sd << 0)
 	);
 
+    uint8_t data[2] = { config_data >> 8, config_data & 0xFF };
+    ESP_LOGI(TAG, "Sending configuration datas: 0x%02x%02x", data[0], data[1]);
+
     conf->als_gain = VEML7700GetResolution(this, conf);
     conf->maximum_lux = VEML7700GetCurrentMaximumLux(this, conf);
 
-    return BusControllerWrite(this, VEML7700_ALS_CONF, &config_data, 2);
+    return BusControllerWrite(this, ALS_CONF, data, 2);
 }
 
 float VEML7700GetResolution(BusController *this, VEML7700Conf *conf) {
@@ -72,15 +76,15 @@ float VEML7700GetResolution(BusController *this, VEML7700Conf *conf) {
     return resolution_map[it_index][gain_index];
 }
 
-static int VEML7700GetGainIndex(uint8_t gain) {
+int VEML7700GetGainIndex(uint8_t gain) {
     return indexOf(gain, gain_values, VEML7700_GAIN_OPTIONS_COUNT);
 }
 
-static int VEML7700GetItIndex(uint8_t it) {
+int VEML7700GetItIndex(uint8_t it) {
     return indexOf(it, integration_time_values, VEML7700_IT_OPTIONS_COUNT);
 }
 
-static uint8_t indexOf(uint8_t element, const uint8_t *array, uint8_t array_size) {
+uint8_t indexOf(uint8_t element, const uint8_t *array, uint8_t array_size) {
     for (int i = 0; i < array_size; i++) {
         if (array[i] == element) {
             return i;
@@ -89,7 +93,7 @@ static uint8_t indexOf(uint8_t element, const uint8_t *array, uint8_t array_size
     return -1;
 }
 
-static VEML7700GetCurrentMaximumLux(BusController *this, VEML7700Conf *conf) {
+uint32_t VEML7700GetCurrentMaximumLux(BusController *this, VEML7700Conf *conf) {
     int gain_index = VEML7700GetGainIndex(conf->als_gain);
     int it_index = VEML7700GetItIndex(conf->als_it);
 
@@ -104,4 +108,19 @@ void VEML7700SetConfig(BusController *this, VEML7700Conf *conf) {
     priv_conf->als_sd = conf->als_sd;
     priv_conf->resolution = conf->resolution;
     priv_conf->maximum_lux = conf->maximum_lux;
+}
+
+esp_err_t VEML7700ReadAlsLux(BusController *this, VEML7700Data *data) {
+    uint8_t buffer[2];
+    esp_err_t ret = BusControllerRead(this, WHITE, buffer, 2);
+    if (ret != ESP_OK) {
+        return ret;
+    }
+
+    data->als = (buffer[0] << 8) | buffer[1];
+    ESP_LOGI(TAG, "ALS: %d", buffer[0]);
+    ESP_LOGI(TAG, "ALS: %d", buffer[1]);
+    data->lux = data->als_white * priv_conf->resolution;
+
+    return ret;
 }

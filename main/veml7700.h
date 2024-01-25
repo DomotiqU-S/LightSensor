@@ -145,21 +145,23 @@ esp_err_t VEML7700ReadAlsLuxAuto(BusController *this);
  */
 esp_err_t VEML7700ReadAlsWhiteAuto(BusController *this);
 
-static struct veml7700_config veml7700_get_default_config();
-static esp_err_t veml7700_optimize_configuration(veml7700_handle_t dev, double *lux);
-static uint32_t VEML7700GetCurrentMaximumLux(BusController *this, VEML7700Conf *conf);
-static uint32_t veml7700_get_lower_maximum_lux(veml7700_handle_t dev, double* lux);
-static uint32_t veml7700_get_lowest_maximum_lux();
-static uint32_t veml7700_get_maximum_lux();
-static int VEML7700GetGainIndex(uint8_t gain);
-static int veml7700_get_it_index(uint8_t integration_time);
-static uint8_t indexOf(uint8_t elm, const uint8_t *ar, uint8_t len);
-static void decrease_resolution(veml7700_handle_t dev);
-static void increase_resolution(veml7700_handle_t dev);
-static esp_err_t veml7700_i2c_read_reg(veml7700_handle_t dev, uint8_t reg_addr, uint16_t *reg_data);
-static esp_err_t veml7700_i2c_write_reg(veml7700_handle_t dev, uint8_t reg_addr, uint16_t reg_data);
+//static struct veml7700_config veml7700_get_default_config();
+//static esp_err_t veml7700_optimize_configuration(veml7700_handle_t dev, double *lux);
+uint32_t VEML7700GetCurrentMaximumLux(BusController *this, VEML7700Conf *conf);
+// static uint32_t veml7700_get_lower_maximum_lux(veml7700_handle_t dev, double* lux);
+// static uint32_t veml7700_get_lowest_maximum_lux();
+// static uint32_t veml7700_get_maximum_lux();
+int VEML7700GetGainIndex(uint8_t gain);
+int VEML7700GetItIndex(uint8_t integration_time);
+uint8_t indexOf(uint8_t element, const uint8_t *array, uint8_t array_size);
+// static void decrease_resolution(veml7700_handle_t dev);
+// static void increase_resolution(veml7700_handle_t dev);
+//static esp_err_t veml7700_i2c_read_reg(veml7700_handle_t dev, uint8_t reg_addr, uint16_t *reg_data);
+//static esp_err_t veml7700_i2c_write_reg(veml7700_handle_t dev, uint8_t reg_addr, uint16_t reg_data);
 esp_err_t VEML7700SendConfiguration(BusController *this, VEML7700Conf *conf);
 
 #ifdef __cplusplus
 }
+#endif // VEML7700_H
+
 #endif // VEML7700_H
