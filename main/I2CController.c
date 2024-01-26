@@ -15,7 +15,7 @@ esp_err_t I2CControllerInit(i2c_data_t *this, uint8_t address, uint8_t sda_pin, 
 
     i2c_param_config(i2c_master_port, &conf);
 
-    this->address = (address);
+    this->address = address;
     this->scl_pin = scl_pin;
     this->sda_pin = sda_pin;
 
@@ -51,8 +51,7 @@ esp_err_t I2CControllerWrite(i2c_data_t *this, uint8_t *tx_buffer, uint8_t reg, 
     return ret;
 }
 
-// TODO: Add a parameter to specify is the start signal should be sent
-esp_err_t I2CControllerRead(i2c_data_t *this, uint8_t *rx_buffer, uint8_t reg, uint8_t len)
+esp_err_t I2CControllerRead(i2c_data_t *this, uint8_t *rx_buffer, uint8_t reg, uint8_t len, uint8_t restart)
 {
     int ret;
     uint8_t write_buffer[1] = {reg};
@@ -60,19 +59,24 @@ esp_err_t I2CControllerRead(i2c_data_t *this, uint8_t *rx_buffer, uint8_t reg, u
     #if DEBUG_I2C_CONTROLLER
         ESP_LOGI(TAG, "Reading %d bytes from register 0x%02x", len, reg);
     #endif
-
-    ret = i2c_master_write_read_device(I2C_MASTER_NUM, this->address, write_buffer, 1, rx_buffer, len, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
+    if (restart == 1) {
+        ret = i2c_master_write_read_device(I2C_MASTER_NUM, this->address, write_buffer, 1, rx_buffer, len, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
+    }
+    else {
+        ret = i2c_master_write_to_device(I2C_MASTER_NUM, this->address, write_buffer, 1, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
+        ret = i2c_master_read_from_device(I2C_MASTER_NUM, this->address, rx_buffer, len, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
+    }
     return ret;
 }
 
-esp_err_t I2CControllerReadByte(i2c_data_t *this, uint8_t *rx_buffer, uint8_t reg)
+esp_err_t I2CControllerReadByte(i2c_data_t *this, uint8_t *rx_buffer, uint8_t reg, uint8_t restart)
 {
-    return I2CControllerRead(this, rx_buffer, reg, 1);
+    return I2CControllerRead(this, rx_buffer, reg, 1, restart);
 }
 
-esp_err_t I2CControllerReadWord(i2c_data_t *this, uint8_t *rx_buffer, uint8_t reg)
+esp_err_t I2CControllerReadWord(i2c_data_t *this, uint8_t *rx_buffer, uint8_t reg, uint8_t restart)
 {
-    return I2CControllerRead(this, rx_buffer, reg, 4);
+    return I2CControllerRead(this, rx_buffer, reg, 4, restart);
 }
 
 esp_err_t I2CControllerWriteByte(i2c_data_t *this, uint8_t *tx_buffer, uint8_t reg)
@@ -83,16 +87,4 @@ esp_err_t I2CControllerWriteByte(i2c_data_t *this, uint8_t *tx_buffer, uint8_t r
 esp_err_t I2CControllerWriteWord(i2c_data_t *this, uint8_t *tx_buffer, uint8_t reg)
 {
     return I2CControllerWrite(this, tx_buffer, reg, 4);
-}
-
-esp_err_t I2CControllerWriteRead(i2c_data_t *this, uint8_t *tx_buffer, uint8_t *rx_buffer, uint8_t tx_len, uint8_t rx_len)
-{
-    int ret;
-
-    #if DEBUG_I2C_CONTROLLER
-        ESP_LOGI(TAG, "Writing %d bytes and reading %d bytes", tx_len, rx_len);
-    #endif
-    ret = i2c_master_write_read_device(I2C_MASTER_NUM, this->address, tx_buffer, tx_len, rx_buffer, rx_len, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
-
-    return ret;
 }

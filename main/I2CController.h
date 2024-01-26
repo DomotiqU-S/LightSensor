@@ -38,7 +38,7 @@ esp_err_t I2CControllerInit(i2c_data_t *this, uint8_t address, uint8_t sda_pin, 
  * @param reg the register to read from
  * @return esp_err_t 
  */
-esp_err_t I2CControllerReadByte(i2c_data_t *this, uint8_t *rx_buffer, uint8_t reg);
+esp_err_t I2CControllerReadByte(i2c_data_t *this, uint8_t *rx_buffer, uint8_t reg, uint8_t restart);
 
 /**
  * @brief Read a word (4 bytes) from a register
@@ -48,7 +48,7 @@ esp_err_t I2CControllerReadByte(i2c_data_t *this, uint8_t *rx_buffer, uint8_t re
  * @param reg the register to read from
  * @return esp_err_t 
  */
-esp_err_t I2CControllerReadWord(i2c_data_t *this, uint8_t *rx_buffer, uint8_t reg);
+esp_err_t I2CControllerReadWord(i2c_data_t *this, uint8_t *rx_buffer, uint8_t reg, uint8_t restart);
 
 /**
  * @brief read from a register with a given length
@@ -59,7 +59,7 @@ esp_err_t I2CControllerReadWord(i2c_data_t *this, uint8_t *rx_buffer, uint8_t re
  * @param len the length of the data to read
  * @return esp_err_t 
  */
-esp_err_t I2CControllerRead(i2c_data_t *this, uint8_t *rx_buffer, uint8_t reg, uint8_t len);
+esp_err_t I2CControllerRead(i2c_data_t *this, uint8_t *rx_buffer, uint8_t reg, uint8_t len, uint8_t restart);
 
 /**
  * @brief write a byte to a register
@@ -91,18 +91,6 @@ esp_err_t I2CControllerWriteWord(i2c_data_t *this, uint8_t *tx_buffer, uint8_t r
  * @return esp_err_t 
  */
 esp_err_t I2CControllerWrite(i2c_data_t *this, uint8_t *tx_buffer, uint8_t reg, uint8_t len);
-
-/**
- * @brief write to a register and immediately read from it
- * 
- * @param data the i2c_data_t object
- * @param rx_buffer data buffer to store the read data
- * @param tx_buffer data buffer to store the write data
- * @param reg the register to write to and read from
- * @param len the length of the data to write
- * @return esp_err_t 
- */
-esp_err_t I2CControllerWriteRead(i2c_data_t *this, uint8_t *rx_buffer, uint8_t *tx_buffer, uint8_t reg, uint8_t len);
 
 /**
  * @brief Deinitialize the I2C controller
