@@ -228,3 +228,16 @@ uint32_t VEML7700GetLowerLux(BusController *this) {
 		return maximums_map[it_index - 1][gain_index];
 	}
 }
+
+esp_err_t VEML7700ReadAlsWhite(BusController *this, float *white) {
+    uint8_t buffer[2];
+    esp_err_t ret = BusControllerRead(this, WHITE, buffer, 2);
+    if (ret != ESP_OK) {
+        return ret;
+    }
+
+    uint16_t raw = (buffer[0] | buffer[1] << 8);
+    *white = (float)raw * priv_conf->resolution;
+
+    return ret;
+}

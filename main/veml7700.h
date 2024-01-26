@@ -133,23 +133,101 @@ float VEML7700GetResolution(BusController *this, VEML7700Conf *conf);
 esp_err_t VEML7700ReadAlsLuxAuto(BusController *this, float *lux);
 
 /**
- * @brief 
+ * @brief Rean the white value for the current configuration
  * 
  * @param this 
  * @return esp_err_t 
  */
 esp_err_t VEML7700ReadAlsWhiteAuto(BusController *this);
 
+/**
+ * @brief Optimize the configuration of the sensor
+ * 
+ * @param this 
+ * @param lux
+ * @return esp_err_t 
+ */
 esp_err_t VEML7700OptimizeConfiguration(BusController *this, float *lux);
+
+/**
+ * @brief Get the current maximum lux value
+ * 
+ * @param this 
+ * @return uint32_t 
+ */
 uint32_t VEML7700GetCurrentMaximumLux(BusController *this);
+
+/**
+ * @brief Get the lower value in the lux range
+ * 
+ * @param this 
+ * @return uint32_t 
+ */
 uint32_t VEML7700GetLowerLux(BusController *this);
+
+/**
+ * @brief Get the lowest maximum lux value
+ * 
+ * @param this 
+ * @return uint32_t 
+ */
 uint32_t VEML7700GetLowestMaxLux(BusController *this);
+
+/**
+ * @brief Get the maximum lux value from the configuration
+ * 
+ * @param this 
+ * @return uint32_t 
+ */
 uint32_t VEML7700GetMaxLux(BusController *this);
+
+/**
+ * @brief Get the index of the gain in the gain array
+ * 
+ * @param gain 
+ * @return int 
+ */
 int VEML7700GetGainIndex(uint8_t gain);
+
+/**
+ * @brief Get the index of the integration time in the integration time array
+ * 
+ * @param integration_time 
+ * @return int 
+ */
 int VEML7700GetItIndex(uint8_t integration_time);
+
+/**
+ * @brief Get the index of an element in an array
+ * 
+ * @param element 
+ * @param array 
+ * @param array_size 
+ * @return uint8_t 
+ */
 uint8_t indexOf(uint8_t element, const uint8_t *array, uint8_t array_size);
+
+/**
+ * @brief Decrease the actual resolution of the sensor
+ * 
+ * @param this 
+ */
 void VEML7700DecreaseResolution(BusController *this);
+
+/**
+ * @brief Increase the actual resolution of the sensor
+ * 
+ * @param this 
+ */
 void VEML7700IncreaseResolution(BusController *this);
+
+/**
+ * @brief Send the configuration to the sensor
+ * 
+ * @param this 
+ * @param conf 
+ * @return esp_err_t 
+ */
 esp_err_t VEML7700SendConfiguration(BusController *this, VEML7700Conf *conf);
 
 #ifdef __cplusplus
