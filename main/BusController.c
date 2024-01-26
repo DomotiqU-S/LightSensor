@@ -51,11 +51,11 @@ esp_err_t BusControllerWrite(BusController *bus_controller, uint8_t cmd, uint8_t
     return ret;
 }
 
-esp_err_t BusControllerRead(BusController *bus_controller, uint8_t cmd, uint8_t *data, size_t data_size) {
+esp_err_t BusControllerRead(BusController *bus_controller, uint8_t cmd, uint8_t *data, size_t data_size, uint8_t restart) {
     esp_err_t ret;
     switch (bus_controller->bus_type) {
         case I2C:
-            ret = I2CControllerRead(&bus_controller->i2c_controller, data, cmd, data_size);
+            ret = I2CControllerRead(&bus_controller->i2c_controller, data, cmd, data_size, 1);
             break;
         case SPI:
             ret = SPIControllerRead(&bus_controller->spi_controller, data, data_size);

@@ -112,7 +112,7 @@ void VEML7700SetConfig(BusController *this, VEML7700Conf *conf) {
 
 esp_err_t VEML7700ReadAlsLux(BusController *this, float *lux) {
     uint8_t buffer[2];
-    esp_err_t ret = BusControllerRead(this, ALS, buffer, 2);
+    esp_err_t ret = BusControllerRead(this, ALS, buffer, 2, 1);
     if (ret != ESP_OK) {
         return ret;
     }
@@ -231,7 +231,7 @@ uint32_t VEML7700GetLowerLux(BusController *this) {
 
 esp_err_t VEML7700ReadAlsWhite(BusController *this, float *white) {
     uint8_t buffer[2];
-    esp_err_t ret = BusControllerRead(this, WHITE, buffer, 2);
+    esp_err_t ret = BusControllerRead(this, WHITE, buffer, 2, 1);
     if (ret != ESP_OK) {
         return ret;
     }

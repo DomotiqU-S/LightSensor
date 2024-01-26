@@ -27,6 +27,7 @@ void app_main(void)
     VEML7700Conf *conf = malloc(sizeof(VEML7700Conf));
     ConfigureSensor(conf);
     float lux = 0;
+    float white = 0;
 
     VEML7700Init(bus, conf);
     while(1) {
@@ -35,6 +36,13 @@ void app_main(void)
             ESP_LOGI("main", "Lux: %f", lux);
         } else {
             ESP_LOGE("main", "Error reading lux");
+        }
+
+        esp_err_t retw = VEML7700ReadAlsWhite(bus, &white);
+        if (ret == ESP_OK) {
+            ESP_LOGI("main", "White: %f", white);
+        } else {
+            ESP_LOGE("main", "Error reading white");
         }
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }

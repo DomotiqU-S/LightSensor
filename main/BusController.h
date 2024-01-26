@@ -69,8 +69,9 @@ esp_err_t BusControllerWrite(BusController *bus_controller, uint8_t cmd, uint8_t
  * @param cmd the command to write for I2C is register address
  * @param data buffer to read into
  * @param data_size size of buffer
+ * @param restart send a restart signal before reading I2C only
  * @return esp_err_t 
  */
-esp_err_t BusControllerRead(BusController *bus_controller, uint8_t cmd, uint8_t *data, size_t data_size);
+esp_err_t BusControllerRead(BusController *bus_controller, uint8_t cmd, uint8_t *data, size_t data_size, uint8_t restart);
 
 #endif
