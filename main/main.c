@@ -1,3 +1,4 @@
+#include "esp_log.h"
 #include <stdio.h>
 #include "veml7700.h"
 
@@ -8,6 +9,8 @@ void ConfigureSensor(VEML7700Conf *conf)
     conf->als_pers = ALS_PERS_1;
     conf->als_int_en = ALS_INT_DISABLE;
     conf->als_sd = ALS_SD_ENABLE;
+    conf->resolution = 0;
+    conf->maximum_lux = 32000;
 }
 
 void app_main(void)
@@ -19,16 +22,20 @@ void app_main(void)
     bus->sda_pin = 1;
     bus->scl_pin = 0;
     bus->address = 0x10;
-    bus->clk_speed = 100000;
+    bus->clk_speed = 400000;
     BusControllerInit(bus);
     VEML7700Conf *conf = malloc(sizeof(VEML7700Conf));
-    VEML7700Data *data = malloc(sizeof(VEML7700Data));
     ConfigureSensor(conf);
+    float lux = 0;
 
     VEML7700Init(bus, conf);
-    vTaskDelay(3000);
     while(1) {
-        VEML7700ReadAlsLux(bus, data);
-        vTaskDelay(3000 / portTICK_PERIOD_MS);
+        esp_err_t ret = VEML7700ReadAlsLux(bus, &lux);
+        if (ret == ESP_OK) {
+            ESP_LOGI("main", "Lux: %f", lux);
+        } else {
+            ESP_LOGE("main", "Error reading lux");
+        }
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }

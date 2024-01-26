@@ -1,7 +1,11 @@
 #ifndef VEML7700_H
 #define VEML7700_H
 
-#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
+#include <math.h>
 #include "BusController.h"
 #include "esp_log.h"
 #include "esp_err.h"
@@ -70,15 +74,6 @@ typedef struct
     float resolution;
     uint32_t maximum_lux;
 } VEML7700Conf;
-
-typedef struct
-{
-    uint16_t als;
-    uint16_t white;
-    float als_white;
-    float lux;
-} VEML7700Data;
-
 /**
  * @brief Initialize the sensor
  * 
@@ -110,7 +105,7 @@ void VEML7700SetConfig(BusController *this, VEML7700Conf *conf);
  * @param data 
  * @return esp_err_t 
  */
-esp_err_t VEML7700ReadAlsLux(BusController *this, VEML7700Data *data);
+esp_err_t VEML7700ReadAlsLux(BusController *this, float *lux);
 
 /**
  * @brief 
@@ -119,7 +114,7 @@ esp_err_t VEML7700ReadAlsLux(BusController *this, VEML7700Data *data);
  * @param data 
  * @return esp_err_t 
  */
-esp_err_t VEML7700ReadAlsWhite(BusController *this, VEML7700Data *data);
+esp_err_t VEML7700ReadAlsWhite(BusController *this, float *white);
 
 /**
  * @brief 
@@ -135,7 +130,7 @@ float VEML7700GetResolution(BusController *this, VEML7700Conf *conf);
  * @param this 
  * @return esp_err_t 
  */
-esp_err_t VEML7700ReadAlsLuxAuto(BusController *this);
+esp_err_t VEML7700ReadAlsLuxAuto(BusController *this, float *lux);
 
 /**
  * @brief 
@@ -145,19 +140,16 @@ esp_err_t VEML7700ReadAlsLuxAuto(BusController *this);
  */
 esp_err_t VEML7700ReadAlsWhiteAuto(BusController *this);
 
-//static struct veml7700_config veml7700_get_default_config();
-//static esp_err_t veml7700_optimize_configuration(veml7700_handle_t dev, double *lux);
-uint32_t VEML7700GetCurrentMaximumLux(BusController *this, VEML7700Conf *conf);
-// static uint32_t veml7700_get_lower_maximum_lux(veml7700_handle_t dev, double* lux);
-// static uint32_t veml7700_get_lowest_maximum_lux();
-// static uint32_t veml7700_get_maximum_lux();
+esp_err_t VEML7700OptimizeConfiguration(BusController *this, float *lux);
+uint32_t VEML7700GetCurrentMaximumLux(BusController *this);
+uint32_t VEML7700GetLowerLux(BusController *this);
+uint32_t VEML7700GetLowestMaxLux(BusController *this);
+uint32_t VEML7700GetMaxLux(BusController *this);
 int VEML7700GetGainIndex(uint8_t gain);
 int VEML7700GetItIndex(uint8_t integration_time);
 uint8_t indexOf(uint8_t element, const uint8_t *array, uint8_t array_size);
-// static void decrease_resolution(veml7700_handle_t dev);
-// static void increase_resolution(veml7700_handle_t dev);
-//static esp_err_t veml7700_i2c_read_reg(veml7700_handle_t dev, uint8_t reg_addr, uint16_t *reg_data);
-//static esp_err_t veml7700_i2c_write_reg(veml7700_handle_t dev, uint8_t reg_addr, uint16_t reg_data);
+void VEML7700DecreaseResolution(BusController *this);
+void VEML7700IncreaseResolution(BusController *this);
 esp_err_t VEML7700SendConfiguration(BusController *this, VEML7700Conf *conf);
 
 #ifdef __cplusplus

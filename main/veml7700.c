@@ -45,8 +45,9 @@ VEML7700Conf *priv_conf;
 
 esp_err_t VEML7700Init(BusController *this, VEML7700Conf *conf) {
     priv_conf = malloc(sizeof(VEML7700Conf));
-    VEML7700SetConfig(this, conf);
-    VEML7700SendConfiguration(this, conf);
+    priv_conf = conf;
+    VEML7700SetConfig(this, priv_conf);
+    VEML7700SendConfiguration(this, priv_conf);
     return 1;
 }
 
@@ -60,11 +61,10 @@ esp_err_t VEML7700SendConfiguration(BusController *this, VEML7700Conf *conf)
 		(conf->als_sd << 0)
 	);
 
-    uint8_t data[2] = { config_data >> 8, config_data & 0xFF };
-    ESP_LOGI(TAG, "Sending configuration datas: 0x%02x%02x", data[0], data[1]);
+    uint8_t data[2] = { config_data >> 8, config_data & 0xFF};
 
-    conf->als_gain = VEML7700GetResolution(this, conf);
-    conf->maximum_lux = VEML7700GetCurrentMaximumLux(this, conf);
+    conf->resolution = VEML7700GetResolution(this, conf);
+    conf->maximum_lux = VEML7700GetCurrentMaximumLux(this);
 
     return BusControllerWrite(this, ALS_CONF, data, 2);
 }
@@ -93,9 +93,9 @@ uint8_t indexOf(uint8_t element, const uint8_t *array, uint8_t array_size) {
     return -1;
 }
 
-uint32_t VEML7700GetCurrentMaximumLux(BusController *this, VEML7700Conf *conf) {
-    int gain_index = VEML7700GetGainIndex(conf->als_gain);
-    int it_index = VEML7700GetItIndex(conf->als_it);
+uint32_t VEML7700GetCurrentMaximumLux(BusController *this) {
+    int gain_index = VEML7700GetGainIndex(priv_conf->als_gain);
+    int it_index = VEML7700GetItIndex(priv_conf->als_it);
 
     return maximums_map[it_index][gain_index];
 }
@@ -110,17 +110,121 @@ void VEML7700SetConfig(BusController *this, VEML7700Conf *conf) {
     priv_conf->maximum_lux = conf->maximum_lux;
 }
 
-esp_err_t VEML7700ReadAlsLux(BusController *this, VEML7700Data *data) {
+esp_err_t VEML7700ReadAlsLux(BusController *this, float *lux) {
     uint8_t buffer[2];
-    esp_err_t ret = BusControllerRead(this, WHITE, buffer, 2);
+    esp_err_t ret = BusControllerRead(this, ALS, buffer, 2);
     if (ret != ESP_OK) {
         return ret;
     }
 
-    data->als = (buffer[0] << 8) | buffer[1];
-    ESP_LOGI(TAG, "ALS: %d", buffer[0]);
-    ESP_LOGI(TAG, "ALS: %d", buffer[1]);
-    data->lux = data->als_white * priv_conf->resolution;
+    uint16_t raw = (buffer[0] | buffer[1] << 8);
+    *lux = (float)raw * priv_conf->resolution;
 
     return ret;
+}
+
+esp_err_t VEML7700ReadAlsLuxAuto(BusController *this, float *lux) {
+    
+    // Read the lux value for the current configuration
+    VEML7700ReadAlsLux(this, lux);
+
+    // Check if the current configuration is optimal, if not, optimize it
+    esp_err_t ret = VEML7700OptimizeConfiguration(this, lux);
+    if(ret == ESP_OK) {
+        ESP_LOGI("VEML7700", "Optimized configuration");
+        return VEML7700ReadAlsLux(this, lux);
+    }
+
+    ESP_LOGI("VEML7700", "Configuration is optimal");
+    return ESP_OK;
+}
+
+esp_err_t VEML7700OptimizeConfiguration(BusController *this, float *lux) {
+    if (ceil(*lux) >= VEML7700GetCurrentMaximumLux(this)) {
+		if (priv_conf->maximum_lux == VEML7700GetMaxLux(this)) {
+			return ESP_FAIL;
+		}
+		VEML7700DecreaseResolution(this);
+	} 
+    else if (*lux < VEML7700GetLowerLux(this)) {
+		if (priv_conf->maximum_lux == VEML7700GetLowestMaxLux(this)) {
+			return ESP_FAIL;
+		}
+		VEML7700IncreaseResolution(this);
+	} 
+    else {
+		return ESP_FAIL;
+	}
+
+	return ESP_OK;
+}
+
+void VEML7700DecreaseResolution(BusController *this) {
+    int gain_index = VEML7700GetGainIndex(priv_conf->als_gain);
+    int it_index = VEML7700GetItIndex(priv_conf->als_it);
+
+    if (gain_index == 3) {
+        priv_conf->als_it = integration_time_values[it_index + 1];
+    }
+    else if (gain_index == 5) {
+        priv_conf->als_gain = gain_values[gain_index - 1];
+    }
+    else {
+        if (resolution_map[it_index + 1][gain_index] > priv_conf->resolution) {
+            if (resolution_map[it_index + 1][gain_index] <= resolution_map[it_index][gain_index + 1]) {
+                priv_conf->als_it = integration_time_values[it_index + 1];
+            }
+        }
+        else if (resolution_map[it_index][gain_index + 1] > priv_conf->resolution) {
+			if (resolution_map[it_index][gain_index + 1] <= resolution_map[it_index + 1][gain_index]) {
+				priv_conf->als_gain = gain_values[gain_index + 1];
+			}
+		}
+    }
+
+    VEML7700SendConfiguration(this, priv_conf);
+}
+
+void VEML7700IncreaseResolution(BusController *this) {
+    int gain_index = VEML7700GetGainIndex(priv_conf->als_gain);
+    int it_index = VEML7700GetItIndex(priv_conf->als_it);
+
+    if ((gain_index > 0) && (it_index > 0)) {
+		if (maximums_map[it_index][gain_index - 1] >= maximums_map[it_index - 1][gain_index]) {
+			priv_conf->als_gain = gain_values[gain_index - 1];
+		} else {
+			priv_conf->als_it = integration_time_values[it_index - 1];
+		}
+	} else if ((gain_index > 0) && (it_index == 0)) {
+		priv_conf->als_gain = gain_values[gain_index - 1];
+	} else {
+		priv_conf->als_it = integration_time_values[it_index - 1];
+	}
+
+	VEML7700SendConfiguration(this, priv_conf);
+}
+
+uint32_t VEML7700GetMaxLux(BusController *this) {
+    return maximums_map[VEML7700_IT_OPTIONS_COUNT - 1][VEML7700_GAIN_OPTIONS_COUNT - 1];
+}
+
+uint32_t VEML7700GetLowestMaxLux(BusController *this) {
+    return maximums_map[0][0];
+}
+
+uint32_t VEML7700GetLowerLux(BusController *this) {
+    int gain_index = VEML7700GetGainIndex(priv_conf->als_gain);
+    int it_index = VEML7700GetItIndex(priv_conf->als_it);
+
+    if ((gain_index > 0) && (it_index > 0)) {
+		if (maximums_map[it_index][gain_index - 1] >= maximums_map[it_index - 1][gain_index]) {
+			return maximums_map[it_index][gain_index - 1];
+		} else {
+			return maximums_map[it_index - 1][gain_index];
+		}
+	} else if ((gain_index > 0) && (it_index == 0)) {
+		return maximums_map[it_index][gain_index - 1];
+	} else {
+		return maximums_map[it_index - 1][gain_index];
+	}
 }
