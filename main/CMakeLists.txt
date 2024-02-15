@@ -1,2 +1,2 @@
-idf_component_register(SRCS "VEML7700.cpp" "I2CController.cpp" "main.cpp"
+idf_component_register(SRCS "main.cpp"
                     INCLUDE_DIRS ".")
