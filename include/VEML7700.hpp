@@ -64,7 +64,7 @@
 class VEML7700
 {
 private:
-    I2CController m_bus;
+    I2CController* m_bus;
 
     uint8_t m_gain;
     uint8_t m_integration_time;
@@ -74,6 +74,9 @@ private:
     uint8_t m_als_sd;
     float m_resolution;
     uint32_t m_maximum_lux;
+    
+    gpio_num_t sda_pin;
+    gpio_num_t scl_pin;
 
     /**
      * @brief List of all possible values for configuring sensor gain.
@@ -124,7 +127,15 @@ private:
     uint8_t indexOf(uint8_t element, const uint8_t *array, uint8_t array_size);
 
 public:
-    VEML7700(gpio_num_t sda, gpio_num_t scl, uint8_t addr = VEML7700_ADDR) : m_bus(addr, sda, scl) {
+
+    /**
+     * @brief Construct a new VEML7700 object. Create a configuration with default values.
+     * 
+     * @param sda 
+     * @param scl 
+     * @param addr 
+     */
+    VEML7700(gpio_num_t sda, gpio_num_t scl, uint8_t addr = VEML7700_ADDR) {
         this->m_gain = ALS_GAIN_1;
         this->m_integration_time = ALS_IT_100MS;
         this->m_persistence = ALS_PERS_1;
@@ -132,23 +143,122 @@ public:
         this->m_als_int_en = ALS_INT_DISABLE;
         this->m_als_sd = ALS_SD_ENABLE;
 
-        esp_err_t ret = m_bus.begin();
-        sendConfiguration();
+        this->sda_pin = sda;
+        this->scl_pin = scl;
+
+        this->m_bus = I2CController::getInstance();
     }
+
+    /**
+     * @brief Destroy the VEML7700 object
+     * 
+     */
     ~VEML7700();
+
+    /**
+     * @brief Send the configuration to the sensor and start it
+     * 
+     * @return true 
+     * @return false 
+     */
+    bool begin();
+
+    /**
+     * @brief Get the Gain object
+     * 
+     * @return uint8_t 
+     */
     uint8_t getGain();
+
+    /**
+     * @brief Get the Integration Time object
+     * 
+     * @return uint8_t 
+     */
     uint8_t getIntegrationTime();
+
+    /**
+     * @brief Get the Persistence object
+     * 
+     * @return uint8_t 
+     */
     uint8_t getPersistence();
+
+    /**
+     * @brief Get the Power Save Mode object
+     * 
+     * @return uint8_t 
+     */
     uint8_t getPowerSaveMode();
+
+    /**
+     * @brief Get the Als Int En object
+     * 
+     * @return uint8_t 
+     */
     uint8_t getAlsIntEn();
+
+    /**
+     * @brief Get the Als Sd object
+     * 
+     * @return uint8_t 
+     */
     uint8_t getAlsSd();
+
+    /**
+     * @brief Set the Gain object
+     * 
+     * @param gain 
+     */
     void setGain(uint8_t gain);
+
+    /**
+     * @brief Set the Integration Time object
+     * 
+     * @param integration_time 
+     */
     void setIntegrationTime(uint8_t integration_time);
+
+    /**
+     * @brief Set the Persistence object
+     * 
+     * @param persistence 
+     */
     void setPersistence(uint8_t persistence);
+
+    /**
+     * @brief Set the Power Save Mode object
+     * 
+     * @param power_save_mode 
+     */
     void setPowerSaveMode(uint8_t power_save_mode);
+
+    /**
+     * @brief Set the Als Int En object
+     * 
+     * @param als_int_en 
+     */
     void setAlsIntEn(uint8_t als_int_en);
+
+    /**
+     * @brief Set the Als Sd object
+     * 
+     * @param als_sd 
+     */
     void setAlsSd(uint8_t als_sd);
+
+    /**
+     * @brief Read the ALS value from the sensor
+     * 
+     * @return float if data is valid, -1 otherwise
+     */
     float readAlsLux();
+
+    /**
+     * @brief Read the white light value from the sensor
+     * 
+     * @return float if data is valid, -1 otherwise
+     */
     float readAlsWhite();
 };
 

@@ -53,7 +53,7 @@ void VEML7700::setPowerSaveMode(uint8_t power_save_mode) {
 
 float VEML7700::readAlsLux() {
     uint8_t buffer[2];
-    esp_err_t ret = m_bus.read(buffer, ALS, 2, 1);
+    esp_err_t ret = m_bus->read(VEML7700_ADDR, buffer, ALS, 2, 1);
     if (ret != ESP_OK) {
         return -1;
     }
@@ -64,7 +64,7 @@ float VEML7700::readAlsLux() {
 
 float VEML7700::readAlsWhite() {
     uint8_t buffer[2];
-    esp_err_t ret = m_bus.read(buffer, WHITE, 2, 1);
+    esp_err_t ret = m_bus->read(VEML7700_ADDR, buffer, WHITE, 2, 1);
     if (ret != ESP_OK) {
         return -1;
     }
@@ -87,7 +87,7 @@ void VEML7700::sendConfiguration() {
     m_resolution = getResolution();
     m_maximum_lux = getCurrentMaximumLux();
 
-    m_bus.write(data, ALS_CONF, 2);
+    m_bus->write(VEML7700_ADDR ,data, ALS_CONF, 2);
 }
 
 float VEML7700::getResolution() {
@@ -119,4 +119,17 @@ uint8_t VEML7700::indexOf(uint8_t element, const uint8_t *array, uint8_t array_s
         }
     }
     return -1;
+}
+
+bool VEML7700::begin() {
+    this->m_bus->setSDAPin(sda_pin);
+    this->m_bus->setSCLPin(scl_pin);
+    esp_err_t ret = this->m_bus->begin();
+
+    if (ret != ESP_OK) {
+        return false;
+    }
+
+    sendConfiguration();
+    return true;
 }
